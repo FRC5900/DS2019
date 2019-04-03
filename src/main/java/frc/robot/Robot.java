@@ -49,7 +49,7 @@ public class Robot extends TimedRobot
  
   final double BallIntakeMaxSpeed = 1.0;
   final double WinchMaxSpeed = 0.75;
-  final double DeadBand = 0.15;
+  final double DeadBand = 0.05;
 
   /**
    * This function is run when the robot is first started up and should be
@@ -154,7 +154,7 @@ public class Robot extends TimedRobot
   public void testPeriodic() 
   { 
     lifts.Cylinder_Controls();
-    Drive_Controls();
+    Drive_Ramp_Controls();                      // Test Only - need input from drivers
     Winch_Controls();
     BallInTake_Controls();
   }
@@ -187,6 +187,50 @@ public class Robot extends TimedRobot
       TurnSpeed = 0.0;
 
     DriveSpeed = RightStick.getY();
+    DriveSpeed = DriveSpeed * RobotActualSpeed;
+    if ((DriveSpeed < DeadBand) &&  (DriveSpeed > -DeadBand)) 
+      DriveSpeed = 0.0;  
+
+    myRobot.arcadeDrive(-DriveSpeed, TurnSpeed);
+  }
+
+
+  /*****************************************************************/
+  /* Drive_Ramp_Controls() - square the joystick input to create a */
+  /*                         parabolic ramp.                       */
+  /*****************************************************************/  
+  public void Drive_Ramp_Controls()
+  {
+    Double RobotActualSpeed;
+    Double RobotActualTurnSpeed;
+    Double TurnSpeed;
+    Double DriveSpeed;
+
+    if(RightStick.getRawButton(1))
+    {
+      RobotActualSpeed = RobotMaxSpeed;
+      RobotActualTurnSpeed = RobotMaxTurnSpeed;
+    }
+    else 
+    {
+      RobotActualSpeed = RobotNormalSpeed;
+      RobotActualTurnSpeed = RobotNormalTurnSpeed;
+    }
+
+    TurnSpeed = RightStick.getX();
+    if( TurnSpeed > 0 )
+      TurnSpeed = Math.pow(TurnSpeed, 2);
+    else 
+      TurnSpeed = -Math.pow(TurnSpeed, 2);
+    TurnSpeed = TurnSpeed * RobotActualTurnSpeed;
+    if ((TurnSpeed < DeadBand) && (TurnSpeed > -DeadBand))
+      TurnSpeed = 0.0;
+
+    DriveSpeed = RightStick.getY();
+    if( DriveSpeed > 0)
+      DriveSpeed = Math.pow(DriveSpeed, 2);
+    else
+      DriveSpeed = -Math.pow(DriveSpeed, 2);
     DriveSpeed = DriveSpeed * RobotActualSpeed;
     if ((DriveSpeed < DeadBand) &&  (DriveSpeed > -DeadBand)) 
       DriveSpeed = 0.0;  
