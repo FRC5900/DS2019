@@ -49,7 +49,7 @@ public class Pneumatics
   CylinderStates Rear_Lift_State;
   CylinderStates BallGateway_State;
 
-  final double CylinderActuationTime = 1.5;
+  final double CylinderActuationTime = 1.5;      // Need to measure this
   private  PressureStates pressure_state = PressureStates.initialize;
   private boolean pressure_ok;
  
@@ -76,12 +76,26 @@ public class Pneumatics
     BallGateway_State = CylinderStates.wait_for_extend_cmd;
   }
 
+  
   /*****************************************************************/
   /* Cylinder_Controls() - checks pressure on air tanks and calls  */
   /*                       the controllers for front, rear and     */
   /*                       ball gateway cylinders.                 */
   /*****************************************************************/ 
   public void Cylinder_Controls()
+  {
+    Check_Air_Pressure();
+    FrontLift_Controller();
+    RearLift_Controller();
+    BallGateway_Controller();   
+  }
+
+
+  /*****************************************************************/
+  /* Check_Air_Pressure() - read Analog pressure sensor and        */
+  /*                        debounce.                              */
+  /*****************************************************************/ 
+  private void Check_Air_Pressure()
   {
     PressureVolts = TankPressure.getVoltage();   // Read Analog Pressure Sensor 
     switch (pressure_state)
@@ -127,9 +141,6 @@ public class Pneumatics
         pressure_state = PressureStates.initialize;
         break;
     } 
-    FrontLift_Controller();
-    RearLift_Controller();
-    BallGateway_Controller();   
   }
 
 
@@ -201,6 +212,7 @@ public class Pneumatics
         break;
     
       default:
+        Front_Lift_State = CylinderStates.wait_for_extend_cmd;
         break;
     }
   }
@@ -274,6 +286,7 @@ public class Pneumatics
         break;
 
       default:
+        Rear_Lift_State = CylinderStates.wait_for_extend_cmd;
         break;
     }
   }
