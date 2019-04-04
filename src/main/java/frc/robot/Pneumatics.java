@@ -76,7 +76,7 @@ public class Pneumatics
     BallGateway_State = CylinderStates.wait_for_extend_cmd;
   }
 
-  
+
   /*****************************************************************/
   /* Cylinder_Controls() - checks pressure on air tanks and calls  */
   /*                       the controllers for front, rear and     */
@@ -156,16 +156,13 @@ public class Pneumatics
         break;
     
       case wait_for_extend_cmd:
-        if (jstick.getRawButton(4) == true)
+        if (jstick.getRawButton(4) == true && pressure_ok )
         {      
-          if( pressure_ok )
-          {
-            Front_Lift.set(true);
-            FrontTimer.reset();
-            FrontTimer.start();
-            Front_Lift_State = CylinderStates.wait_for_extend;
-            SmartDashboard.putString("FrontLift", "Extending");
-          }
+          Front_Lift.set(true);
+          FrontTimer.reset();
+          FrontTimer.start();
+          Front_Lift_State = CylinderStates.wait_for_extend;
+          SmartDashboard.putString("FrontLift", "Extending");
         }
         break;
     
@@ -184,16 +181,13 @@ public class Pneumatics
         break;
     
       case wait_for_retract_cmd:
-        if (jstick.getRawButton(4) == true)      // Wait for button to retract
+        if (jstick.getRawButton(4) == true && pressure_ok)  
         {      
-          if( pressure_ok )
-          {
-            Front_Lift.set(false);
-            FrontTimer.reset();
-            FrontTimer.start();
-            Front_Lift_State = CylinderStates.wait_for_retract;
-            SmartDashboard.putString("FrontLift", "Retracting");
-          }
+          Front_Lift.set(false);
+          FrontTimer.reset();
+          FrontTimer.start();
+          Front_Lift_State = CylinderStates.wait_for_retract;
+          SmartDashboard.putString("FrontLift", "Retracting");
         }
         break;
     
@@ -230,16 +224,13 @@ public class Pneumatics
         break;
 
       case wait_for_extend_cmd:
-        if (jstick.getRawButton(5) == true)
+        if (jstick.getRawButton(5) == true && pressure_ok)
         {      
-          if( pressure_ok )
-          {
-            Rear_Lift.set(true);
-            RearTimer.reset();
-            RearTimer.start();
-            Rear_Lift_State = CylinderStates.wait_for_extend;
-            SmartDashboard.putString("RearLift", "Extending");
-          }
+          Rear_Lift.set(true);
+          RearTimer.reset();
+          RearTimer.start();
+          Rear_Lift_State = CylinderStates.wait_for_extend;
+          SmartDashboard.putString("RearLift", "Extending");
         }
         break;
 
@@ -258,16 +249,13 @@ public class Pneumatics
         break;
 
       case wait_for_retract_cmd:
-        if (jstick.getRawButton(5) == true)      // Wait for button to retract
+        if (jstick.getRawButton(5) == true && pressure_ok)
         {      
-          if( pressure_ok )
-          {
-            Rear_Lift.set(false);
-            RearTimer.reset();
-            RearTimer.start();
-            Rear_Lift_State = CylinderStates.wait_for_retract;
-            SmartDashboard.putString("RearLift", "Extending");
-          }
+          Rear_Lift.set(false);
+          RearTimer.reset();
+          RearTimer.start();
+          Rear_Lift_State = CylinderStates.wait_for_retract;
+          SmartDashboard.putString("RearLift", "Extending");
         }
         break;
 
