@@ -16,6 +16,7 @@ import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.SpeedController;
 import edu.wpi.first.wpilibj.SpeedControllerGroup;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.cscore.UsbCamera;
 import edu.wpi.first.cameraserver.CameraServer;
 
@@ -43,13 +44,25 @@ public class Robot extends TimedRobot
   public Pneumatics lifts;                              // This object controls lift cyclinders
  
   final double RobotMaxSpeed = 1;
-  final double RobotMaxTurnSpeed = 0.7;
-  final double RobotNormalSpeed = .7;
-  final double RobotNormalTurnSpeed = 0.5;
+  final double RobotMaxTurnSpeed = 0.85;
+  final double RobotNormalSpeed = .80;
+  final double RobotNormalTurnSpeed = 0.70;
  
   final double BallIntakeMaxSpeed = 1.0;
-  final double WinchMaxSpeed = 0.75;
-  final double DeadBand = 0.05;
+  final double WinchMaxSpeed = 1.0;
+  final double DeadBand = 0.1;
+  private Timer robot_timer;
+  final double auto_robot_move_time = 3.0;
+  final double auto_robot_move_speed = 0.4;
+  enum Robot_Move_States 
+  {
+    idle, 
+    set_up_move,
+    wait_for_move_complete,
+    finished
+  };
+
+  Robot_Move_States robot_move_state = Robot_Move_States.idle;
 
   /**
    * This function is run when the robot is first started up and should be
@@ -108,6 +121,7 @@ public class Robot extends TimedRobot
   {
     SmartDashboard.putString("Mode", "autonomousInit");
     sysstat.StartGameClock();                    // Start Game Clock and monitor game elapsed time
+    robot_move_state = Robot_Move_States.idle;
   }
 
   /**
@@ -116,10 +130,25 @@ public class Robot extends TimedRobot
   @Override
   public void autonomousPeriodic() 
   {
-    lifts.Cylinder_Controls();
-    Drive_Controls();
-    Winch_Controls();
-    BallInTake_Controls();
+    switch ( robot_move_state )
+    {
+      case idle:
+      case finished:
+        lifts.Cylinder_Controls();
+        Drive_Controls();
+        Winch_Controls();
+        BallInTake_Controls();
+        if( RightStick.getRawButton(3) == true )
+        { 
+          robot_move_state = Robot_Move_States.set_up_move;
+        }
+        break;
+      
+      case set_up_move:
+      case wait_for_move_complete:
+        Move_Robot_Controller();
+        break;
+    }   
   }
 
   @Override
@@ -183,7 +212,7 @@ public class Robot extends TimedRobot
 
     TurnSpeed = RightStick.getX();
     TurnSpeed = TurnSpeed * RobotActualTurnSpeed;
-    if ((TurnSpeed < DeadBand) && (TurnSpeed > -DeadBand))
+    if ((TurnSpeed < DeadBand) && (TurnSpeed > -DeadBand)) 
       TurnSpeed = 0.0;
 
     DriveSpeed = RightStick.getY();
@@ -277,5 +306,44 @@ public class Robot extends TimedRobot
       m_Winch.set( 0.0 );
 
     SmartDashboard.putNumber("WinchCount", WinchCounter);
+  }
+
+  /*****************************************************************/
+  /* Move_Robot_Controller() -                                     */
+  /*                                                               */
+  /*****************************************************************/   
+  public void Move_Robot_Controller()
+  {
+    switch ( robot_move_state )
+    {
+      case idle:
+        break;
+      
+      case set_up_move:
+        robot_timer.reset();
+        robot_timer.start();
+        myRobot.arcadeDrive(-auto_robot_move_speed, 0.0);
+        robot_move_state = Robot_Move_States.wait_for_move_complete;
+        break;
+     
+      case wait_for_move_complete:
+        if( robot_timer.get() > auto_robot_move_time )
+        {
+          myRobot.arcadeDrive(0.0, 0.0);         // Stop the robot
+          robot_timer.stop();                    // Stop the timer
+          robot_move_state = Robot_Move_States.finished;
+        }
+        else 
+          myRobot.arcadeDrive(-auto_robot_move_speed, 0.0);
+        break;
+      
+      case finished:
+        break;
+
+      default: 
+        robot_move_state = Robot_Move_States.idle;
+        break;
+
+    }
   }
 }

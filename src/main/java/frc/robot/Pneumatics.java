@@ -8,6 +8,7 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.Solenoid;
+import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -38,10 +39,10 @@ public class Pneumatics
 
   Compressor c = new Compressor(0);
   Solenoid Front_Lift = new Solenoid(0);
-  Solenoid Rear_Lift = new Solenoid(1);
-  Solenoid Ball_Grab = new Solenoid(3);
-  Solenoid Ball_Gateway = new Solenoid(2); 
-
+  Solenoid Ball_Gateway = new Solenoid(1); 
+  DoubleSolenoid Rear_Lift = new DoubleSolenoid(4, 5);
+  DoubleSolenoid Rear_Lift2 = new DoubleSolenoid(6, 7);
+ 
   Timer FrontTimer = new Timer();
   Timer RearTimer = new Timer();
 
@@ -49,13 +50,15 @@ public class Pneumatics
   CylinderStates Rear_Lift_State;
   CylinderStates BallGateway_State;
 
-  final double CylinderActuationTime = 1.5;      // Need to measure this
+  final double CylinderActuationTime = 1.25;      // Need to measure this
   private  PressureStates pressure_state = PressureStates.initialize;
   private boolean pressure_ok;
  
   final double PressureMax = 2.0;                // change when ready to deploy
   private double PressureVolts;
-  private int PressureDebounce;
+  private int PressureDebounce = 0;
+  private int FrontLift_Debounce = 0;
+  private int RearLift_Debounce = 0;
   AnalogInput TankPressure = new AnalogInput(0);
 
   public Pneumatics( Joystick stick )
@@ -66,11 +69,17 @@ public class Pneumatics
   }
   
   public void Initialize()
-  {    
+  {  
+    c.setClosedLoopControl(true);   
     Front_Lift.set(false);
-    Rear_Lift.set(false);
+    Rear_Lift.set(DoubleSolenoid.Value.kReverse);
+    Rear_Lift2.set(DoubleSolenoid.Value.kReverse);
     Ball_Gateway.set(false);
     pressure_state = PressureStates.initialize;
+    SmartDashboard.putBoolean("PressureOK", pressure_ok);
+    PressureDebounce = 0;
+    FrontLift_Debounce = 0;
+    RearLift_Debounce = 0;
     Front_Lift_State = CylinderStates.wait_for_extend_cmd;
     Rear_Lift_State = CylinderStates.wait_for_extend_cmd;
     BallGateway_State = CylinderStates.wait_for_extend_cmd;
@@ -114,7 +123,7 @@ public class Pneumatics
           {
             PressureDebounce = 0;  
             pressure_ok = true;
-            SmartDashboard.putBoolean("Pressure", pressure_ok);
+            SmartDashboard.putBoolean("PressureOK", pressure_ok);
             pressure_state = PressureStates.tanks_pressurized;           
           } 
         }  
@@ -129,7 +138,7 @@ public class Pneumatics
           {
             PressureDebounce = 0;   
             pressure_ok = false;
-            SmartDashboard.putBoolean("Pressure", pressure_ok);
+            SmartDashboard.putBoolean("PressureOK", pressure_ok);
             pressure_state = PressureStates.wait_tanks_pressurize;
           }  
         }
@@ -157,18 +166,24 @@ public class Pneumatics
     
       case wait_for_extend_cmd:
         if (jstick.getRawButton(4) == true && pressure_ok )
-        {      
-          Front_Lift.set(true);
-          FrontTimer.reset();
-          FrontTimer.start();
-          Front_Lift_State = CylinderStates.wait_for_extend;
-          SmartDashboard.putString("FrontLift", "Extending");
+        { 
+          if( ++FrontLift_Debounce > 10 )
+          {
+            Front_Lift.set(true);
+            FrontTimer.reset();
+            FrontTimer.start();
+            Front_Lift_State = CylinderStates.wait_for_extend;
+            SmartDashboard.putString("FrontLift", "Extending");
+          }
         }
+        else 
+          FrontLift_Debounce = 0;
         break;
     
       case wait_for_extend:
         if( FrontTimer.get() > CylinderActuationTime)
         {
+          FrontLift_Debounce = 0;
           Front_Lift_State = CylinderStates.wait_for_extend_release;
           FrontTimer.stop();
           SmartDashboard.putString("FrontLift", "Extended");
@@ -177,23 +192,37 @@ public class Pneumatics
     
       case wait_for_extend_release:
         if (jstick.getRawButton(4) == false)
-          Front_Lift_State = CylinderStates.wait_for_retract_cmd;
+        {
+          if ( ++FrontLift_Debounce > 10 )
+          {
+            FrontLift_Debounce = 0;
+            Front_Lift_State = CylinderStates.wait_for_retract_cmd;
+          }
+        }
+        else 
+          FrontLift_Debounce = 0;
         break;
     
       case wait_for_retract_cmd:
         if (jstick.getRawButton(4) == true && pressure_ok)  
         {      
-          Front_Lift.set(false);
-          FrontTimer.reset();
-          FrontTimer.start();
-          Front_Lift_State = CylinderStates.wait_for_retract;
-          SmartDashboard.putString("FrontLift", "Retracting");
+          if (++FrontLift_Debounce > 10)
+          {
+            Front_Lift.set(false);
+            FrontTimer.reset();
+            FrontTimer.start();
+            Front_Lift_State = CylinderStates.wait_for_retract;
+            SmartDashboard.putString("FrontLift", "Retracting");
+          }
         }
+        else 
+          FrontLift_Debounce = 0;
         break;
     
       case wait_for_retract:
         if( FrontTimer.get() > CylinderActuationTime)
         {
+          FrontLift_Debounce = 0;
           Front_Lift_State = CylinderStates.wait_for_retract_release;
           FrontTimer.stop();
           SmartDashboard.putString("FrontLift", "Retracted");          
@@ -202,10 +231,19 @@ public class Pneumatics
             
       case wait_for_retract_release:
         if (jstick.getRawButton(4) == false)
-          Front_Lift_State = CylinderStates.wait_for_extend_cmd;
+        {
+          if (++FrontLift_Debounce > 10 )
+          {
+            FrontLift_Debounce = 0;
+            Front_Lift_State = CylinderStates.wait_for_extend_cmd;
+          }
+        }
+        else 
+          FrontLift_Debounce = 0;
         break;
     
       default:
+        FrontLift_Debounce = 0;
         Front_Lift_State = CylinderStates.wait_for_extend_cmd;
         break;
     }
@@ -225,18 +263,25 @@ public class Pneumatics
 
       case wait_for_extend_cmd:
         if (jstick.getRawButton(5) == true && pressure_ok)
-        {      
-          Rear_Lift.set(true);
-          RearTimer.reset();
-          RearTimer.start();
-          Rear_Lift_State = CylinderStates.wait_for_extend;
-          SmartDashboard.putString("RearLift", "Extending");
+        {   
+          if (++RearLift_Debounce > 10 )  
+          {
+            Rear_Lift.set(DoubleSolenoid.Value.kForward);
+            Rear_Lift2.set(DoubleSolenoid.Value.kForward);
+            RearTimer.reset();
+            RearTimer.start();
+            Rear_Lift_State = CylinderStates.wait_for_extend;
+            SmartDashboard.putString("RearLift", "Extending");
+          }  
         }
+        else 
+          RearLift_Debounce = 0;
         break;
 
       case wait_for_extend:
         if( RearTimer.get() > CylinderActuationTime)
         {
+          RearLift_Debounce = 0;
           Rear_Lift_State = CylinderStates.wait_for_extend_release;
           RearTimer.stop();
           SmartDashboard.putString("RearLift", "Extended");
@@ -245,23 +290,38 @@ public class Pneumatics
 
       case wait_for_extend_release:
         if (jstick.getRawButton(5) == false)
-          Rear_Lift_State = CylinderStates.wait_for_retract_cmd;
+        {
+          if (++RearLift_Debounce > 10)
+          {
+            RearLift_Debounce = 0;
+            Rear_Lift_State = CylinderStates.wait_for_retract_cmd;
+          }
+        }
+        else 
+          RearLift_Debounce = 0;
         break;
 
       case wait_for_retract_cmd:
         if (jstick.getRawButton(5) == true && pressure_ok)
-        {      
-          Rear_Lift.set(false);
-          RearTimer.reset();
-          RearTimer.start();
-          Rear_Lift_State = CylinderStates.wait_for_retract;
-          SmartDashboard.putString("RearLift", "Extending");
+        {  
+          if ( ++RearLift_Debounce > 10 )    
+          {
+            Rear_Lift.set(DoubleSolenoid.Value.kReverse);
+            Rear_Lift2.set(DoubleSolenoid.Value.kReverse);
+            RearTimer.reset();
+            RearTimer.start();
+            Rear_Lift_State = CylinderStates.wait_for_retract;
+            SmartDashboard.putString("RearLift", "Extending");
+          }
         }
+        else 
+          RearLift_Debounce = 0;
         break;
 
       case wait_for_retract:
         if( RearTimer.get() > CylinderActuationTime)
         {
+          RearLift_Debounce = 0;
           Rear_Lift_State = CylinderStates.wait_for_retract_release;
           RearTimer.stop();
           SmartDashboard.putString("RearLift", "Retracted");          
@@ -270,10 +330,19 @@ public class Pneumatics
         
       case wait_for_retract_release:
         if (jstick.getRawButton(5) == false)
-          Rear_Lift_State = CylinderStates.wait_for_extend_cmd;
+        {
+          if (++RearLift_Debounce > 10)
+          {
+            RearLift_Debounce = 0;
+            Rear_Lift_State = CylinderStates.wait_for_extend_cmd;
+          }  
+        }
+        else 
+          RearLift_Debounce = 0;
         break;
 
       default:
+        RearLift_Debounce = 0;
         Rear_Lift_State = CylinderStates.wait_for_extend_cmd;
         break;
     }
